@@ -1,0 +1,12 @@
+{
+  "name": "watermark-app",
+  "version": "1.0.0",
+  "description": "Sign images",
+  "main": "app.js",
+  "repository": "git@github.com:ufsowa/watermark-app.git",
+  "author": "Piotr Sowa <piotrsowa87@gmail.com>",
+  "license": "MIT",
+  "dependencies": {
+    "jimp": "0.6.4"
+  }
+}
