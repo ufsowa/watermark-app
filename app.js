@@ -1,19 +1,42 @@
 const Jimp = require('jimp');
 const inquirer = require('inquirer');
+const fs = require('fs');
 
 const addTextWatermarkToImage = async function(inputFile, text) {
-  const image = await Jimp.read('./images/' + inputFile);
-  const font = await Jimp.loadFont(Jimp.FONT_SANS_32_BLACK);
-  const textData = {
-    text,
-    alignmentX: Jimp.HORIZONTAL_ALIGN_CENTER,
-    alignmentY: Jimp.VERTICAL_ALIGN_MIDDLE,
-  };
-  image.print(font, 0, 0, textData, image.getWidth(), image.getHeight());
-  await image.quality(100).writeAsync(prepareOutputFilename(inputFile));
+  try {
+    if(!fs.existsSync('./images/' + inputFile)) {
+      const errMsg = 'File does not exist: ' + inputFile;
+      console.warn(errMsg);
+      throw Error(errMsg);
+    }
+    const image = await Jimp.read('./images/' + inputFile);
+    const font = await Jimp.loadFont(Jimp.FONT_SANS_32_BLACK);
+    const textData = {
+        text,
+        alignmentX: Jimp.HORIZONTAL_ALIGN_CENTER,
+        alignmentY: Jimp.VERTICAL_ALIGN_MIDDLE,
+    };
+    image.print(font, 0, 0, textData, image.getWidth(), image.getHeight());
+    await image.quality(100).writeAsync(prepareOutputFilename(inputFile));
+    console.log('File created successfully!')
+    startApp();
+} catch(error){
+    console.log('Something went wrong.... Try again!')
+  }
 };
 
 const addImageWatermarkToImage = async function(inputFile, watermarkFile) {
+  try {    
+    if(!fs.existsSync('./images/' + inputFile)) {
+        const errMsg = 'File does not exist: ' + inputFile; 
+        console.warn(errMsg);
+        throw new Error(errMsg);
+    }
+    if(!fs.existsSync('./images/' + watermarkFile)) {
+        const errMsg = 'File does not exist: ' + watermarkFile; 
+        console.warn(errMsg);
+        throw new Error(errMsg);
+    }
     const image = await Jimp.read('./images/' + inputFile);
     const watermark = await Jimp.read('./images/' + watermarkFile);
     const x = image.getWidth() / 2 - watermark.getWidth() / 2;
@@ -24,17 +47,23 @@ const addImageWatermarkToImage = async function(inputFile, watermarkFile) {
       opacitySource: 0.5,
     });
     await image.quality(100).writeAsync(prepareOutputFilename(inputFile));
+    console.log('File created successfully!')
+    startApp();
+  }
+  catch(error){
+      console.log('Something went wrong.... Try again!')
+  }
 };
 
-const prepareOutputFilename = (fileName) => {
-    const [name, format] = fileName.split('.'); 
-    
-    if(!name || !format) {
-        console.warn('Wrong file format');
-        return 0;
-    }
-
-    return `./images/outputs/${name}-with-watermark.${format}`;
+const prepareOutputFilename = (fileName) => { 
+  const [name, format] = fileName.split('.'); 
+  const supportedFormats = ['jpg', 'jpeg', 'png', 'bmp', 'tiff', 'gif'];
+  if(!name || !supportedFormats.includes(format)) {
+    const errMsg = 'Wrong file format: ' + fileName; 
+    console.warn(errMsg);
+    throw new Error(errMsg);
+  }
+  return `./images/outputs/${name}-with-watermark.${format}`;
 };
   
 const startApp = async () => {
@@ -42,26 +71,26 @@ const startApp = async () => {
   // Ask if user is ready
   const answer = await inquirer.prompt([{
     name: 'start',
-    message: 'Hi! Welcome to "Watermark manager". Copy your image files to `/img` folder. Then you\'ll be able to use them in the app. Are you ready?',
+    message: 'Hi! Welcome to "Watermark manager". Copy your image files to `/images` folder. Then you\'ll be able to use them in the app. Are you ready?',
     type: 'confirm'
   }]);
 
-// if answer is no, just quit the app
-if(!answer.start) process.exit();
+  // if answer is no, just quit the app
+  if(!answer.start) process.exit();
 
-// ask about input file and watermark type
-const options = await inquirer.prompt([{
-  name: 'inputImage',
-  type: 'input',
-  message: 'What file do you want to mark?',
-  default: 'test.jpg',
-}, {
-  name: 'watermarkType',
-  type: 'list',
-  choices: ['Text watermark', 'Image watermark'],
-}]);
+  // ask about input file and watermark type
+  const options = await inquirer.prompt([{
+    name: 'inputImage',
+    type: 'input',
+    message: 'What file do you want to mark?',
+    default: 'test.jpg',
+    }, {
+    name: 'watermarkType',
+    type: 'list',
+    choices: ['Text watermark', 'Image watermark'],
+  }]);
 
-if(options.watermarkType === 'Text watermark') {
+  if(options.watermarkType === 'Text watermark') {
     const text = await inquirer.prompt([{
       name: 'value',
       type: 'input',
@@ -69,7 +98,6 @@ if(options.watermarkType === 'Text watermark') {
     }]);
     options.watermarkText = text.value;
     addTextWatermarkToImage(options.inputImage, options.watermarkText);
-
   }
   else {
     const image = await inquirer.prompt([{
@@ -84,5 +112,3 @@ if(options.watermarkType === 'Text watermark') {
 }
 
 startApp();
-// addImageWatermarkToImage('./test.jpg', './test-with-watermark2.jpg', './logo.jpg');
-// addTextWatermarkToImage('./test.jpg', './test-with-watermark.jpg', 'Hello world');
