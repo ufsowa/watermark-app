@@ -2,7 +2,30 @@ const Jimp = require('jimp');
 const inquirer = require('inquirer');
 const fs = require('fs');
 
-const addTextWatermarkToImage = async function(inputFile, text) {
+const editImage = async (image, type) => {
+    console.log('Edit image: ', type);
+
+    switch(type){
+        case 'Make image brighter':
+            await image.brightness(0.5);
+            break;
+        case 'Increase contrast':
+            await image.contrast(0.5);
+            break; 
+        case 'Make image b&w':
+            await image.greyscale();
+            break; 
+        case 'Invert image':
+            await image.invert();
+            break;
+        default:
+            console.log('Wrong edit type! Ignored...')
+    }
+
+    return image;
+}
+
+const addTextWatermarkToImage = async function(inputFile, text, editType) {
   try {
     if(!fs.existsSync('./images/' + inputFile)) {
       const errMsg = 'File does not exist: ' + inputFile;
@@ -17,6 +40,7 @@ const addTextWatermarkToImage = async function(inputFile, text) {
         alignmentY: Jimp.VERTICAL_ALIGN_MIDDLE,
     };
     image.print(font, 0, 0, textData, image.getWidth(), image.getHeight());
+    await editImage(image, editType);    
     await image.quality(100).writeAsync(prepareOutputFilename(inputFile));
     console.log('File created successfully!')
     startApp();
@@ -25,7 +49,7 @@ const addTextWatermarkToImage = async function(inputFile, text) {
   }
 };
 
-const addImageWatermarkToImage = async function(inputFile, watermarkFile) {
+const addImageWatermarkToImage = async function(inputFile, watermarkFile, editType) {
   try {    
     if(!fs.existsSync('./images/' + inputFile)) {
         const errMsg = 'File does not exist: ' + inputFile; 
@@ -46,6 +70,7 @@ const addImageWatermarkToImage = async function(inputFile, watermarkFile) {
       mode: Jimp.BLEND_SOURCE_OVER,
       opacitySource: 0.5,
     });
+    await editImage(image, editType);    
     await image.quality(100).writeAsync(prepareOutputFilename(inputFile));
     console.log('File created successfully!')
     startApp();
@@ -79,16 +104,30 @@ const startApp = async () => {
   if(!answer.start) process.exit();
 
   // ask about input file and watermark type
+
+
   const options = await inquirer.prompt([{
     name: 'inputImage',
     type: 'input',
     message: 'What file do you want to mark?',
     default: 'test.jpg',
-    }, {
+    },{
+    name: 'edit',
+    type: 'confirm',
+    message: 'Do you want to edit image?'
+    },{
+    name: 'editType',
+    message: 'Select edit mode:',
+    when: (answers) => answers.edit,
+    type: 'list',
+    choices: ['Make image brighter', 'Increase contrast', 'Make image b&w', 'Invert image'],
+    },{
     name: 'watermarkType',
+    message: 'Select watermark mode:',
     type: 'list',
     choices: ['Text watermark', 'Image watermark'],
-  }]);
+    },
+  ]);
 
   if(options.watermarkType === 'Text watermark') {
     const text = await inquirer.prompt([{
@@ -97,7 +136,7 @@ const startApp = async () => {
       message: 'Type your watermark text:',
     }]);
     options.watermarkText = text.value;
-    addTextWatermarkToImage(options.inputImage, options.watermarkText);
+    addTextWatermarkToImage(options.inputImage, options.watermarkText, options.editType);
   }
   else {
     const image = await inquirer.prompt([{
@@ -107,7 +146,7 @@ const startApp = async () => {
       default: 'logo.png',
     }]);
     options.watermarkImage = image.filename;
-    addImageWatermarkToImage(options.inputImage, options.watermarkImage);
+    addImageWatermarkToImage(options.inputImage, options.watermarkImage, options.editType);
   }
 }
 
